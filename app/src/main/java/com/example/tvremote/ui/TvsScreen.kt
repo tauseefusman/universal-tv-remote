@@ -10,6 +10,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import com.example.tvremote.core.*
 
 @Composable
@@ -86,6 +87,9 @@ fun TvsScreen(vm: AppViewModel) {
                 Text("Vibration feedback", Modifier.weight(1f))
                 Switch(checked = haptics, onCheckedChange = { vm.setHaptics(it) })
             }
+            val ctx = LocalContext.current
+            val ver = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "?" }
+            Text("App version $ver", style = MaterialTheme.typography.bodySmall)
             Text("Everything runs on your local network. No account, no cloud.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(24.dp))
         }
@@ -140,7 +144,7 @@ private fun PairingDialog(vm: AppViewModel) {
     val title: String; val body: String
     when (val s = p) {
         is PairingUi.Starting -> { title = "Contacting ${s.tv.name}…"; body = "Keep the TV on and on the same Wi-Fi as this phone." }
-        is PairingUi.AwaitCode -> { title = "Enter the code on ${s.tv.name}"; body = "A 6-character code is showing on the TV screen. Type it below." }
+        is PairingUi.AwaitCode -> { title = "Enter the code on ${s.tv.name}"; body = "A code is showing on the TV screen. Type it below." }
         is PairingUi.AwaitApproval -> { title = "Approve on ${s.tv.name}"; body = "Look at the TV and choose Allow / Yes when asked to accept this device. This can take a few seconds to appear." }
         is PairingUi.Failed -> { title = "Pairing didn't finish"; body = s.message + "\n\nTips: keep the TV awake, stay on the same Wi-Fi, and if you tapped Deny, try again and choose Allow." }
         PairingUi.Idle -> return
@@ -148,12 +152,12 @@ private fun PairingDialog(vm: AppViewModel) {
     AlertDialog(onDismissRequest = { vm.cancelPairing() }, title = { Text(title) },
         text = { Column {
             Text(body)
-            if (p is PairingUi.AwaitCode) OutlinedTextField(code, { code = it.take(6).uppercase() }, singleLine = true, label = { Text("Code") }, modifier = Modifier.padding(top = 12.dp))
+            if (p is PairingUi.AwaitCode) OutlinedTextField(code, { code = it.take(8).uppercase() }, singleLine = true, label = { Text("Code") }, modifier = Modifier.padding(top = 12.dp))
             if (p is PairingUi.Starting || p is PairingUi.AwaitApproval) LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 12.dp))
         } },
         confirmButton = {
             when (val s = p) {
-                is PairingUi.AwaitCode -> TextButton(onClick = { vm.submitCode(code) }, enabled = code.length == 6) { Text("Pair") }
+                is PairingUi.AwaitCode -> TextButton(onClick = { vm.submitCode(code) }, enabled = code.length >= 4 && code.length % 2 == 0) { Text("Pair") }
                 is PairingUi.Failed -> TextButton(onClick = { vm.startPairing(s.tv) }) { Text("Try again") }
                 else -> {}
             }

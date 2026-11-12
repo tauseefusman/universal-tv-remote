@@ -63,18 +63,31 @@ class AndroidTvAdapter(@Suppress("unused") private val context: Context) : TvAda
         private var sock: SSLSocket? = null
         private lateinit var clientKey: RSAPublicKey
         private lateinit var serverKey: RSAPublicKey
+        @Volatile private var symbolLength = 6
 
         private fun outer(vararg payload: ByteArray) =
             Pb.concat(Pb.int(1, 2), Pb.int(2, 200), *payload)
 
-        private fun readUntil(field: Int): List<Pb.Field> {
+        private fun hex(b: ByteArray) = b.joinToString("") { "%02x".format(it) }
+
+        private fun readUntil(field: Int, step: String): List<Pb.Field> {
             val input = sock!!.inputStream
             while (true) {
-                val f = Pb.parse(Pb.readFrame(input))
+                val raw = Pb.readFrame(input)
+                val f = Pb.parse(raw)
                 val status = f.find(2)?.long?.toInt() ?: 200
-                if (status != 200) throw PairingDenied("TV rejected pairing (status $status)")
+                if (status != 200) throw PairingDenied("TV rejected pairing at step \"$step\" (status $status). TV reply: ${hex(raw)}")
                 if (f.find(field) != null) return f
             }
+        }
+
+        /** Pick the encoding the TV says it will display (its output encoding), falling back to hex/6. */
+        private fun chooseEncoding(optionReply: List<Pb.Field>): Pair<Int, Int> {
+            val inner = runCatching { Pb.parse(optionReply.find(20)!!.data!!) }.getOrNull() ?: return 3 to 6
+            fun encs(n: Int) = inner.filter { it.number == n && it.data != null }.map { Pb.parse(it.data!!) }
+                .map { (it.find(1)?.long?.toInt() ?: 3) to (it.find(2)?.long?.toInt() ?: 6) }
+            val all = encs(2) + encs(1)
+            return all.firstOrNull { it.first == 3 } ?: all.firstOrNull() ?: (3 to 6)
         }
 
         suspend fun start() = withContext(Dispatchers.IO) {
@@ -89,13 +102,15 @@ class AndroidTvAdapter(@Suppress("unused") private val context: Context) : TvAda
                 val out = s.outputStream
                 // PairingRequest{service_name=1, client_name=2}
                 Pb.writeFrame(out, outer(Pb.msg(10, Pb.str(1, "androidtvremote2"), Pb.str(2, "Universal TV Remote"))))
-                readUntil(11)
+                readUntil(11, "request")
                 // PairingOption{input_encodings=1{type=3 HEX, symbol_length=6}, preferred_role=3 (INPUT=1)}
                 Pb.writeFrame(out, outer(Pb.msg(20, Pb.msg(1, Pb.int(1, 3), Pb.int(2, 6)), Pb.int(3, 1))))
-                readUntil(20)
-                // PairingConfiguration{encoding=1{HEX,6}, client_role=2 (INPUT=1)}
-                Pb.writeFrame(out, outer(Pb.msg(30, Pb.msg(1, Pb.int(1, 3), Pb.int(2, 6)), Pb.int(2, 1))))
-                readUntil(31)
+                val optionReply = readUntil(20, "options")
+                val (encType, encLen) = chooseEncoding(optionReply)
+                symbolLength = encLen
+                // PairingConfiguration{encoding=1{type, symbol_length}, client_role=2 (INPUT=1)}
+                Pb.writeFrame(out, outer(Pb.msg(30, Pb.msg(1, Pb.int(1, encType), Pb.int(2, encLen)), Pb.int(2, 1))))
+                readUntil(31, "configuration")
                 // TV now displays the code.
             } catch (e: IOException) {
                 cancel(); throw PairingDenied("Could not reach the TV pairing service: ${e.message}")
@@ -104,7 +119,7 @@ class AndroidTvAdapter(@Suppress("unused") private val context: Context) : TvAda
 
         override suspend fun submit(code: String?): String = withContext(Dispatchers.IO) {
             val hex = code?.trim()?.uppercase().orEmpty()
-            if (!Regex("[0-9A-F]{6}").matches(hex)) throw PairingDenied("Enter the 6-character code shown on the TV.")
+            if (!Regex("[0-9A-F]{$symbolLength}").matches(hex)) throw PairingDenied("Enter the $symbolLength-character code shown on the TV.")
             val codeBytes = hex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
             val md = MessageDigest.getInstance("SHA-256")
             md.update(mod(clientKey)); md.update(exp(clientKey)); md.update(mod(serverKey)); md.update(exp(serverKey))
@@ -114,7 +129,7 @@ class AndroidTvAdapter(@Suppress("unused") private val context: Context) : TvAda
             if (secret[0] != codeBytes[0]) throw PairingDenied("That code doesn't match. Check the TV screen and try again.")
             try {
                 Pb.writeFrame(sock!!.outputStream, outer(Pb.msg(40, Pb.bytes(1, secret))))
-                readUntil(41)
+                readUntil(41, "secret")
             } catch (e: IOException) {
                 throw PairingDenied("The TV closed the connection (pairing denied or timed out).")
             } finally { cancel() }
