@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,3 +28,23 @@ jobs:
         with:
           name: universal-tv-remote-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish release with the APK
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/universal-tv-remote-debug.apk"
+          gh release create "build-${{ github.run_number }}" "$RUNNER_TEMP/universal-tv-remote-debug.apk" \
+            --title "Debug APK build ${{ github.run_number }}" \
+            --notes "Debug build of commit ${{ github.sha }}. Unit tests passed. Not yet tested on a physical TV."
+      - name: Keep a copy on the apk-builds branch
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name github-actions
+          git config user.email actions@github.com
+          git checkout --orphan apk-builds
+          git rm -rf . -q
+          cp "$RUNNER_TEMP/universal-tv-remote-debug.apk" .
+          git add universal-tv-remote-debug.apk
+          git commit -q -m "APK from build ${{ github.run_number }}"
+          git push -f origin apk-builds
