@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  TVs on the local network speak cleartext HTTP/WS (Roku ECP, Samsung ws://, SSDP descriptions)
+  or use self-signed certificates (webOS wss, Samsung wss, Android TV TLS). We therefore allow
+  cleartext traffic. Self-signed TLS is handled per-connection in code (LocalTls.kt), never globally.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
