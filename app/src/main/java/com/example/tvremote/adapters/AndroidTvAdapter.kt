@@ -90,11 +90,11 @@ class AndroidTvAdapter(@Suppress("unused") private val context: Context) : TvAda
                 // PairingRequest{service_name=1, client_name=2}
                 Pb.writeFrame(out, outer(Pb.msg(10, Pb.str(1, "com.example.tvremote"), Pb.str(2, "Universal TV Remote"))))
                 readUntil(11)
-                // PairingOption{input_encodings=1{type=3 HEX, symbol_length=4}, preferred_role=3 (INPUT=1)}
-                Pb.writeFrame(out, outer(Pb.msg(20, Pb.msg(1, Pb.int(1, 3), Pb.int(2, 4)), Pb.int(3, 1))))
+                // PairingOption{input_encodings=1{type=3 HEX, symbol_length=6}, preferred_role=3 (INPUT=1)}
+                Pb.writeFrame(out, outer(Pb.msg(20, Pb.msg(1, Pb.int(1, 3), Pb.int(2, 6)), Pb.int(3, 1))))
                 readUntil(20)
-                // PairingConfiguration{encoding=1{HEX,4}, client_role=2 (INPUT=1)}
-                Pb.writeFrame(out, outer(Pb.msg(30, Pb.msg(1, Pb.int(1, 3), Pb.int(2, 4)), Pb.int(2, 1))))
+                // PairingConfiguration{encoding=1{HEX,6}, client_role=2 (INPUT=1)}
+                Pb.writeFrame(out, outer(Pb.msg(30, Pb.msg(1, Pb.int(1, 3), Pb.int(2, 6)), Pb.int(2, 1))))
                 readUntil(31)
                 // TV now displays the code.
             } catch (e: IOException) {
