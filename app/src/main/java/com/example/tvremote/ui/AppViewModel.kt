@@ -250,7 +250,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun refreshApps() { viewModelScope.launch { _apps.value = runCatching { active?.listApps() }.getOrNull().orEmpty().sortedBy { it.name.lowercase() } } }
 
     fun entryLabel(entry: String) = if (entry.startsWith("known:")) KnownApp.valueOf(entry.removePrefix("known:")).label else parseEntry(entry).second
-    private fun parseEntry(e: String): Pair<String, String> = e.removePrefix("app:").split("|", limit = 2).let { it[0] to it.getOrElse(1) { it[0] } }
+    private fun parseEntry(e: String): Pair<String, String> = e.removePrefix("app:").split("|", limit = 2).let { parts -> parts[0] to parts.getOrElse(1) { parts[0] } }
 
     fun pin(app: AppEntry) = mutateFavs { if ("app:${app.id}|${app.name}" !in it) it + "app:${app.id}|${app.name}" else it }
     fun unpin(entry: String) = mutateFavs { it - entry }

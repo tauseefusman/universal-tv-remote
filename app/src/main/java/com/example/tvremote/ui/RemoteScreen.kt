@@ -2,6 +2,7 @@ package com.example.tvremote.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -28,6 +29,7 @@ fun RemoteScreen(vm: AppViewModel, goToTvs: () -> Unit) {
     val features by vm.features.collectAsState()
     val haptics by vm.haptics.collectAsState()
     var more by remember { mutableStateOf(false) }
+    val live = state == ConnectionState.Connected
 
     Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         TvSwitcher(vm, tvs, selected)
@@ -39,7 +41,6 @@ fun RemoteScreen(vm: AppViewModel, goToTvs: () -> Unit) {
             Button(onClick = goToTvs, modifier = Modifier.padding(top = 16.dp).heightIn(min = 56.dp)) { Text("Find my TV") }
             return@Column
         }
-        val live = state == ConnectionState.Connected
         fun on(f: Feature) = live && f in features
 
         // Top row: power / source / more
@@ -67,7 +68,7 @@ fun RemoteScreen(vm: AppViewModel, goToTvs: () -> Unit) {
                 HoldKey(vm, RemoteKey.VOL_DOWN, Icons.Default.Remove, "Volume down", haptics, on(Feature.VOLUME), round = false)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                RemoteButton(Icons.AutoMirrored.Filled.VolumeOff, description = "Mute", haptics = haptics, enabled = on(Feature.MUTE), onClick = { vm.press(RemoteKey.MUTE) })
+                RemoteButton(Icons.Default.VolumeOff, description = "Mute", haptics = haptics, enabled = on(Feature.MUTE), onClick = { vm.press(RemoteKey.MUTE) })
                 RemoteButton(Icons.Default.Home, description = "Home", haptics = haptics, enabled = live, onClick = { vm.press(RemoteKey.HOME) })
                 RemoteButton(Icons.AutoMirrored.Filled.ArrowBack, description = "Back", haptics = haptics, enabled = live, onClick = { vm.press(RemoteKey.BACK) })
             }
@@ -222,7 +223,7 @@ private fun Touchpad(vm: AppViewModel, enabled: Boolean, tapAsOk: () -> Unit) {
                     acc = x to y
                 }
             }
-            .pointerInput(enabled) { if (enabled) androidx.compose.foundation.gestures.detectTapGestures(onTap = { tapAsOk() }) },
+            .pointerInput(enabled) { if (enabled) detectTapGestures(onTap = { tapAsOk() }) },
         contentAlignment = Alignment.Center,
     ) { Text("Swipe · tap to select", color = MaterialTheme.colorScheme.onSurfaceVariant) }
 }
