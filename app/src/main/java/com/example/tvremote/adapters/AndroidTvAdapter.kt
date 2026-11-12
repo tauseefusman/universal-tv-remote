@@ -88,7 +88,7 @@ class AndroidTvAdapter(@Suppress("unused") private val context: Context) : TvAda
                 serverKey = s.session.peerCertificates[0].publicKey as RSAPublicKey
                 val out = s.outputStream
                 // PairingRequest{service_name=1, client_name=2}
-                Pb.writeFrame(out, outer(Pb.msg(10, Pb.str(1, "com.example.tvremote"), Pb.str(2, "Universal TV Remote"))))
+                Pb.writeFrame(out, outer(Pb.msg(10, Pb.str(1, "androidtvremote2"), Pb.str(2, "Universal TV Remote"))))
                 readUntil(11)
                 // PairingOption{input_encodings=1{type=3 HEX, symbol_length=6}, preferred_role=3 (INPUT=1)}
                 Pb.writeFrame(out, outer(Pb.msg(20, Pb.msg(1, Pb.int(1, 3), Pb.int(2, 6)), Pb.int(3, 1))))
