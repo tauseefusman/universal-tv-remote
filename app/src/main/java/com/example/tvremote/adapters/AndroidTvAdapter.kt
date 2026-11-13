@@ -112,7 +112,9 @@ class AndroidTvAdapter(@Suppress("unused") private val context: Context) : TvAda
                 Pb.writeFrame(out, outer(Pb.msg(30, Pb.msg(1, Pb.int(1, encType), Pb.int(2, encLen)), Pb.int(2, 1))))
                 readUntil(31, "configuration")
                 // TV now displays the code.
-            } catch (e: IOException) {
+            } catch (e: PairingDenied) {
+                cancel(); throw e
+            } catch (e: Exception) {
                 cancel(); throw PairingDenied("Could not reach the TV pairing service: ${e.message}")
             }
         }
@@ -130,6 +132,8 @@ class AndroidTvAdapter(@Suppress("unused") private val context: Context) : TvAda
             try {
                 Pb.writeFrame(sock!!.outputStream, outer(Pb.msg(40, Pb.bytes(1, secret))))
                 readUntil(41, "secret")
+            } catch (e: PairingDenied) {
+                throw e
             } catch (e: IOException) {
                 throw PairingDenied("The TV closed the connection (pairing denied or timed out).")
             } finally { cancel() }

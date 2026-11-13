@@ -126,6 +126,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startPairing(tv: TvDevice) {
         viewModelScope.launch {
+            pairingSession?.cancel(); pairingSession = null
+            delay(600) // let the TV drop any previous pairing session
             val ad = adapters.getValue(tv.platform)
             _pairing.value = PairingUi.Starting(tv)
             try {
